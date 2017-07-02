@@ -1,0 +1,3 @@
+rootProject.name = 'testxmpp'
+
+include ':app'
