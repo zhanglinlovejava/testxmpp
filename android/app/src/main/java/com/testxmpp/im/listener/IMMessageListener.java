@@ -1,4 +1,4 @@
-package com.testxmpp.im;
+package com.testxmpp.im.listener;
 
 import android.text.TextUtils;
 

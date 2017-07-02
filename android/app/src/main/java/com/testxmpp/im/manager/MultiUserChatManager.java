@@ -1,4 +1,4 @@
-package com.testxmpp.im;
+package com.testxmpp.im.manager;
 
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smackx.muc.MultiUserChat;

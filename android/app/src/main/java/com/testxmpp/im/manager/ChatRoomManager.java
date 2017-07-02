@@ -1,22 +1,20 @@
-package com.testxmpp.im;
+package com.testxmpp.im.manager;
 
-import android.util.Log;
+import com.testxmpp.im.event.EventInviterChatRoom;
+import com.testxmpp.im.event.RxBus;
 
-import org.jivesoftware.smack.Chat;
-import org.jivesoftware.smack.ChatManager;
-import org.jivesoftware.smack.RosterEntry;
-import org.jivesoftware.smack.RosterGroup;
+import org.jivesoftware.smack.Connection;
 import org.jivesoftware.smack.SmackConfiguration;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
+import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smackx.Form;
 import org.jivesoftware.smackx.FormField;
 import org.jivesoftware.smackx.muc.DiscussionHistory;
+import org.jivesoftware.smackx.muc.InvitationListener;
 import org.jivesoftware.smackx.muc.MultiUserChat;
-import org.jivesoftware.smackx.packet.VCard;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
@@ -27,41 +25,18 @@ import java.util.List;
  * TODO:
  */
 
-public class IMManager {
-    private static IMManager instance = null;
-    private ChatManager chatManager;
-
-    private IMManager() {
+public class ChatRoomManager {
+    private static ChatRoomManager instance = null;
+    private ChatRoomManager() {
 
     }
 
-    public synchronized static IMManager getInstance() {
-        if (instance == null) instance = new IMManager();
+    public synchronized static ChatRoomManager getInstance() {
+        if (instance == null) instance = new ChatRoomManager();
         return instance;
     }
 
-    /**
-     * 发送消息
-     *
-     * @param to
-     * @param msg
-     * @return
-     */
-    public boolean sendMsg(String to, String msg) {
-        try {
-            XMPPConnection connection = IMConnectionManager.getInstance().getConnection();
-            if (connection != null) {
-                if (chatManager == null)
-                    chatManager = connection.getChatManager();
-                Chat chat = chatManager.createChat(to, null);
-                chat.sendMessage(msg);
-                return true;
-            } else return false;
-        } catch (XMPPException e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
+
 
     /**
      * 创建聊天室
@@ -132,85 +107,12 @@ public class IMManager {
 
 
     /**
-     * 获取某个组里面的所有好友
+     * 加入聊天室
      *
-     * @param groupName
+     * @param roomId
+     * @param psw
      * @return
      */
-    public List<RosterEntry> getEntriesByGroup(String groupName) {
-        XMPPConnection connection = IMConnectionManager.getInstance().getConnection();
-        if (connection == null)
-            return null;
-        List<RosterEntry> Entrieslist = new ArrayList<RosterEntry>();
-        RosterGroup rosterGroup = connection.getRoster().getGroup(
-                groupName);
-        Collection<RosterEntry> rosterEntry = rosterGroup.getEntries();
-        Iterator<RosterEntry> i = rosterEntry.iterator();
-        while (i.hasNext()) {
-            Entrieslist.add(i.next());
-        }
-        return Entrieslist;
-    }
-
-    /**
-     * 获取所有好友信息
-     *
-     * @return
-     */
-    public List<RosterEntry> getAllEntries() {
-        XMPPConnection connection = IMConnectionManager.getInstance().getConnection();
-        if (connection == null)
-            return null;
-        List<RosterEntry> Entrieslist = new ArrayList<RosterEntry>();
-        Collection<RosterEntry> rosterEntry = connection.getRoster()
-                .getEntries();
-        Iterator<RosterEntry> i = rosterEntry.iterator();
-        while (i.hasNext()) {
-            Entrieslist.add(i.next());
-        }
-        return Entrieslist;
-    }
-
-    /**
-     * 获取用户VCard信息
-     *
-     * @param user
-     * @return
-     * @throws XMPPException
-     */
-    public VCard getUserVCard(String user) {
-        XMPPConnection connection = IMConnectionManager.getInstance().getConnection();
-        if (connection == null)
-            return null;
-        VCard vcard = new VCard();
-        try {
-            vcard.load(connection, user);
-        } catch (XMPPException e) {
-            e.printStackTrace();
-        }
-        return vcard;
-    }
-
-    /**
-     * 添加一个分组
-     *
-     * @param groupName
-     * @return
-     */
-    public boolean addGroup(String groupName) {
-        XMPPConnection connection = IMConnectionManager.getInstance().getConnection();
-        if (connection == null)
-            return false;
-        try {
-            connection.getRoster().createGroup(groupName);
-            Log.e("addGroup", groupName + "創建成功");
-            return true;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
-
     public boolean joinChatRoom(String roomId, String psw) {
         XMPPConnection connection = IMConnectionManager.getInstance().getConnection();
         if (connection == null)
@@ -228,26 +130,6 @@ public class IMManager {
 
     }
 
-    /**
-     * 发送聊天室文本信息
-     *
-     * @param roomId
-     * @param msg
-     * @return
-     */
-    public boolean sendChatRoomMsg(String roomId, String msg) {
-        XMPPConnection connection = IMConnectionManager.getInstance().getConnection();
-        if (connection == null)
-            return false;
-        try {
-            MultiUserChat muc = MultiUserChatManager.getInstance().getMultiUserChat(connection, roomId);
-            muc.sendMessage(msg);
-            return true;
-        } catch (XMPPException e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
 
     /**
      * 离开聊天室
@@ -265,6 +147,7 @@ public class IMManager {
 
     /**
      * 邀请加入聊天室
+     *
      * @param user
      * @param roomId
      * @param inviteMsg
@@ -275,5 +158,34 @@ public class IMManager {
             return;
         MultiUserChat multiUserChat = MultiUserChatManager.getInstance().getMultiUserChat(connection, roomId);
         multiUserChat.invite(user, inviteMsg);
+    }
+
+    /**
+     * 注册会议室邀请监听
+     */
+    public void registerChatRoomInviterListener() {
+        XMPPConnection connection = IMConnectionManager.getInstance().getConnection();
+        if (connection == null)
+            return;
+        MultiUserChat.addInvitationListener(connection, new InvitationListener() {
+            @Override
+            public void invitationReceived(Connection connection, String roomID, String inviter, String reason, String psw, Message message) {
+                RxBus.getDefault().post(new EventInviterChatRoom(message, reason, psw, roomID, inviter));
+            }
+        });
+    }
+
+    /**
+     * 拒绝接受聊天室的邀请
+     *
+     * @param roomId
+     * @param inviter
+     * @param declineMsg
+     */
+    public void declineChatRoomInviter(String roomId, String inviter, String declineMsg) {
+        XMPPConnection connection = IMConnectionManager.getInstance().getConnection();
+        if (connection == null)
+            return;
+        MultiUserChat.decline(connection, roomId, inviter, declineMsg);
     }
 }

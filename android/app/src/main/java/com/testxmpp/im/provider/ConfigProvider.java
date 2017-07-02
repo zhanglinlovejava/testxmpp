@@ -1,4 +1,4 @@
-package com.testxmpp.im;
+package com.testxmpp.im.provider;
 
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.provider.ProviderManager;
@@ -26,7 +26,7 @@ import org.jivesoftware.smackx.provider.XHTMLExtensionProvider;
  */
 
 public class ConfigProvider {
-    static void configure(ProviderManager pm) {
+    public static void configure(ProviderManager pm) {
         // Service Discovery # Items
         pm.addIQProvider("query", "http://jabber.org/protocol/disco#items", new DiscoverItemsProvider());
         // Service Discovery # Info

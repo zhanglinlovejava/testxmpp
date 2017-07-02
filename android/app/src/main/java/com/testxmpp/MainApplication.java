@@ -42,6 +42,6 @@ public class MainApplication extends Application implements ReactApplication {
         Logger.init()               // default tag : PRETTYLOGGER or use just init()
                 .setMethodCount(3)            // default 2
                 .hideThreadInfo()             // default it is shown
-                .setLogLevel(LogLevel.NONE);
+                .setLogLevel(LogLevel.FULL);
     }
 }

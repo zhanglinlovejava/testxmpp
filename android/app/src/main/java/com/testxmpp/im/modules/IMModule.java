@@ -10,10 +10,12 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
-import com.testxmpp.im.IMConnectionManager;
-import com.testxmpp.im.IMManager;
+import com.testxmpp.im.event.EventInviterChatRoom;
 import com.testxmpp.im.event.EventNewMsg;
 import com.testxmpp.im.event.RxBus;
+import com.testxmpp.im.manager.ChatRoomManager;
+import com.testxmpp.im.manager.IMConnectionManager;
+import com.testxmpp.im.manager.MessageManger;
 
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smackx.muc.MultiUserChat;
@@ -40,6 +42,7 @@ public class IMModule extends ReactContextBaseJavaModule implements LifecycleEve
     }
 
     private void registerMsgObserver() {
+        ChatRoomManager.getInstance().registerChatRoomInviterListener();
         if (subscriptions == null) subscriptions = new CompositeSubscription();
         subscriptions.add(RxBus.getDefault().toObserverable(EventNewMsg.class)
                 .subscribe(new Action1<EventNewMsg>() {
@@ -57,6 +60,19 @@ public class IMModule extends ReactContextBaseJavaModule implements LifecycleEve
                             mContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
                                     .emit("event_group_new_msg", map);
                         }
+                    }
+                }));
+        subscriptions.add(RxBus.getDefault().toObserverable(EventInviterChatRoom.class)
+                .subscribe(new Action1<EventInviterChatRoom>() {
+                    @Override
+                    public void call(EventInviterChatRoom event) {
+                        WritableMap map = Arguments.createMap();
+                        map.putString("inviter", event.inivter);
+                        map.putString("reason", event.reason);
+                        map.putString("psw", event.psw);
+                        map.putString("roomId", event.roomId);
+                        mContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+                                .emit("event_inviter_chatroom", map);
                     }
                 }));
     }
@@ -82,18 +98,19 @@ public class IMModule extends ReactContextBaseJavaModule implements LifecycleEve
      */
     @ReactMethod
     public void inviteUserToChatRoom(String user, String roomId, String psw, String inviteMsg) {
-        IMManager.getInstance().inviteToChatRoom(user, roomId, inviteMsg);
+        ChatRoomManager.getInstance().inviteToChatRoom(user, roomId, inviteMsg);
     }
 
     /**
      * 拒绝加入聊天室
      *
-     * @param room
+     * @param roomId
      * @param inviter
-     * @param reason
+     * @param declineMsg
      */
     @ReactMethod
-    public void rejectJoinChatRoom(String room, String inviter, String reason) {
+    public void rejectJoinChatRoom(String roomId, String inviter, String declineMsg) {
+        ChatRoomManager.getInstance().declineChatRoomInviter(roomId, inviter, declineMsg);
     }
 
 
@@ -105,8 +122,8 @@ public class IMModule extends ReactContextBaseJavaModule implements LifecycleEve
      * @param promise
      */
     @ReactMethod
-    public void sendMsg(String toID, String msg, Promise promise) {
-        boolean isSuccess = IMManager.getInstance().sendMsg(toID, msg);
+    public void sendMsg(String toID, String msg ,Promise promise) {
+        boolean isSuccess = MessageManger.getInstance().sendMsg(toID, msg);
         if (isSuccess)
             promise.resolve("发送成功");
         else promise.reject("101", "发送失败");
@@ -114,11 +131,14 @@ public class IMModule extends ReactContextBaseJavaModule implements LifecycleEve
 
     @ReactMethod
     public void sendGroupMsg(String roomId, String msg, Promise promise) {
-        boolean isSuccess = IMManager.getInstance().sendChatRoomMsg(roomId, msg);
+        boolean isSuccess = MessageManger.getInstance().sendChatRoomMsg(roomId, msg);
         if (isSuccess) promise.resolve("发送成功");
         else promise.reject("101", "发送失败");
 
     }
+
+
+
 
     /**
      * 添加好友
@@ -137,7 +157,7 @@ public class IMModule extends ReactContextBaseJavaModule implements LifecycleEve
      */
     @ReactMethod
     public void joinChatRoom(String roomId, String psw, Promise promise) {
-        boolean isSuccess = IMManager.getInstance().joinChatRoom(roomId, psw);
+        boolean isSuccess = ChatRoomManager.getInstance().joinChatRoom(roomId, psw);
         if (isSuccess) {
             promise.resolve("加入聊天室成功");
         } else {
@@ -154,7 +174,7 @@ public class IMModule extends ReactContextBaseJavaModule implements LifecycleEve
      */
     @ReactMethod
     public void createRoom(String nick, String roomName, String psw, Promise promise) {
-        MultiUserChat muc = IMManager.getInstance().createRoom(nick, roomName, psw);
+        MultiUserChat muc = ChatRoomManager.getInstance().createRoom(nick, roomName, psw);
         if (muc == null) {
             promise.reject("101", "创建聊天室失败");
         } else {
@@ -169,7 +189,7 @@ public class IMModule extends ReactContextBaseJavaModule implements LifecycleEve
      */
     @ReactMethod
     public void leave(String roomID) {
-        IMManager.getInstance().leaveChatRoom(roomID);
+        ChatRoomManager.getInstance().leaveChatRoom(roomID);
     }
 
     /**

@@ -23,8 +23,8 @@ export default class main extends Component {
             addFriendId: "",
             roomID: "",
             newRoomName: "",
-            inviteRoomName:"",
-            inviteName:""
+            inviteRoomName: "",
+            inviteName: ""
 
         }
     }
@@ -131,7 +131,7 @@ export default class main extends Component {
                         ;
                     }}/>
                     <Button title="离开" onPress={() => {
-                        NativeModules.IMModule.leave(this.state.roomID+"@conference.127.0.0.1");
+                        NativeModules.IMModule.leave(this.state.roomID + "@conference.127.0.0.1");
                     }}/>
                     <Button title="发送消息" onPress={() => {
                         NativeModules.IMModule.sendGroupMsg(this.state.roomID + "@conference.127.0.0.1", this.state.text)
@@ -157,12 +157,13 @@ export default class main extends Component {
                         placeholder={"要邀请人的名字"}
                     />
                     <Button title="邀请进入聊天室" onPress={() => {
-                        NativeModules.IMModule.inviteUserToChatRoom(this.state.inviteName+"@127.0.0.1/Smack",
-                            this.state.inviteRoomName+"@conference.127.0.0.1", ""
+                        NativeModules.IMModule.inviteUserToChatRoom(this.state.inviteName + "@127.0.0.1/Smack",
+                            this.state.inviteRoomName + "@conference.127.0.0.1", ""
                             , "进来撩妹子");
                     }}/>
 
                 </View>
+
             </View>
         );
     }
@@ -191,15 +192,15 @@ export default class main extends Component {
             // this.setState({text: event.txt, from: event.fromId});
         });
         DeviceEventEmitter.addListener("event_inviter_chatroom", function (event) {
-            Alert.alert("加入聊天室", event.from + "---" + event.reason, [{
+            Alert.alert(event.inviter + "邀请你加入聊天室"+event.roomId, event.reason, [{
                 text: "拒绝", onPress: () => {
-                    NativeModules.IMModule.rejectJoinChatRoom(event.room,
-                        event.from, "你丫很闲啊");
+                    NativeModules.IMModule.rejectJoinChatRoom(event.roomId,
+                        event.inviter, "你丫很闲啊");
                     // ToastAndroid.show("你拒绝了", 1000);
                 }
             }, {
                 text: "同意", onPress: () => {
-                    NativeModules.IMModule.joinMulitiChatroom(event.from, "")
+                    NativeModules.IMModule.joinChatRoom(event.roomId, "")
                         .then(msg => {
                             ToastAndroid.show(msg, 1000);
 
