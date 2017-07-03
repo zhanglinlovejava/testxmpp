@@ -3,8 +3,9 @@ package com.testxmpp.im.manager;
 
 import com.orhanobut.logger.Logger;
 import com.testxmpp.Constants;
-import com.testxmpp.im.provider.ConfigProvider;
 import com.testxmpp.im.listener.IMMessageListener;
+import com.testxmpp.im.provider.ConfigProvider;
+import com.testxmpp.im.utils.BackgroundExecutor;
 
 import org.jivesoftware.smack.ConnectionConfiguration;
 import org.jivesoftware.smack.ConnectionListener;
@@ -13,21 +14,20 @@ import org.jivesoftware.smack.SmackConfiguration;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.filter.PacketFilter;
+import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.Packet;
 import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.provider.ProviderManager;
 
 
 /**
- * 时间: 2017/7/1 下午10:10
- * 作者：张林
- * Email:zhanglin01@100tal.com
- * TODO:
+ * created by zhanglin on 2017/7/2
  */
 
 public class IMConnectionManager {
     private static IMConnectionManager instance = null;
     public XMPPConnection connection;
+    private IMMessageListener imMessageListener;
 
     private IMConnectionManager() {
     }
@@ -52,13 +52,18 @@ public class IMConnectionManager {
                 // SASLAuthentication.supportSASLMechanism("PLAIN", 0);
                 connection.login(name.toLowerCase(), pwd);
                 connection.sendPacket(new Presence(Presence.Type.available));
-                connection.addPacketListener(new IMMessageListener(), new PacketFilter() {
+                Constants.user_jid = connection.getUser();
+                if (imMessageListener == null) {
+                    imMessageListener = new IMMessageListener();
+                }
+                connection.addPacketListener(imMessageListener, new PacketFilter() {
                     @Override
                     public boolean accept(Packet packet) {
-                        return true;
+                        if (packet instanceof Presence || packet instanceof Message)
+                            return true;
+                        return false;
                     }
                 });
-                Constants.user_jid = connection.getUser();
                 return true;
             }
         } catch (XMPPException e) {
@@ -89,45 +94,60 @@ public class IMConnectionManager {
         SmackConfiguration.setDefaultPingInterval(0);
         connection.connect();
         ConfigProvider.initFeatures(connection);
+        connection.getRoster().setSubscriptionMode(Roster.SubscriptionMode.manual);
         connection.addConnectionListener(new ConnectionListener() {
-
             @Override
             public void reconnectionSuccessful() {
-                // TODO Auto-generated method stub
                 Logger.e("重连成功");
             }
 
             @Override
             public void reconnectionFailed(Exception arg0) {
-                // TODO Auto-generated method stub
                 Logger.e("重连失败");
-//                    User user = SaveUserUtil.loadAccount(context);
-//                    login(user.getUser(), user.getPassword());
 
 
             }
 
             @Override
             public void reconnectingIn(int arg0) {
-                // TODO Auto-generated method stub
                 Logger.e("重连中");
             }
 
             @Override
             public void connectionClosedOnError(Exception e) {
-                // TODO Auto-generated method stub
-                Logger.e("连接出错");
-                if (e.getMessage().contains("conflict")) {
-                    Logger.e("被挤掉了");
-//                        disConnectServer();
-
-                }
+                Logger.e("连接关闭" + e.getMessage());
+                reLogin();
             }
 
             @Override
             public void connectionClosed() {
-                // TODO Auto-generated method stub
                 Logger.e("连接关闭");
+            }
+        });
+
+    }
+
+    public void reLogin() {
+        BackgroundExecutor.execute(new Runnable() {
+            @Override
+            public void run() {
+                disconnect();
+//                EventBus.getDefault().post(new EventBusEvent.ReloginEvent(conflict));//// TODO: 2017/7/3
+            }
+        });
+    }
+
+
+    public void disconnect() {
+        BackgroundExecutor.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    if (connection!=null&&connection.isConnected())
+                        connection.disconnect();
+                } catch (Exception e) {
+                    Logger.e(e);
+                }
             }
         });
 
@@ -138,4 +158,5 @@ public class IMConnectionManager {
             return connection;
         else return null;
     }
+
 }

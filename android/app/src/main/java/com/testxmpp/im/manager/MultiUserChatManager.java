@@ -11,7 +11,7 @@ import java.util.Map;
  */
 
 public class MultiUserChatManager {
-    private Map<String, MultiUserChat> mucs = new HashMap<>();
+    private Map<String, MultiUserChat> mucMap = new HashMap<>();
     private static MultiUserChatManager instance = null;
 
     private MultiUserChatManager() {
@@ -24,11 +24,13 @@ public class MultiUserChatManager {
     }
 
     public void addMultiUserChat(MultiUserChat muc) {
-        mucs.put(muc.getRoom(), muc);
+        mucMap.put(muc.getRoom(), muc);
+
+
     }
 
     public MultiUserChat getMultiUserChat(XMPPConnection connection, String roomId) {
-        MultiUserChat muc = mucs.get(roomId);
+        MultiUserChat muc = mucMap.get(roomId);
         if (muc == null) {
             muc = new MultiUserChat(connection, roomId);
             addMultiUserChat(muc);
@@ -36,12 +38,18 @@ public class MultiUserChatManager {
         return muc;
     }
 
+    /**
+     * 销毁聊天室成员变化和拒绝邀请的监听事件
+     */
     public void onDestroy() {
-        mucs.clear();
+        for (int i = 0; i < mucMap.size(); i++) {
+            ChatRoomManager.getInstance().unRegisterChatRoomRejectListener(mucMap.get(i));
+        }
+        mucMap.clear();
         instance = null;
     }
 
     public void clearMultiUserChat() {
-        mucs.clear();
+        mucMap.clear();
     }
 }

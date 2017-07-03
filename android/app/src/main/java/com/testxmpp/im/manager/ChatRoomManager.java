@@ -1,32 +1,31 @@
 package com.testxmpp.im.manager;
 
-import com.testxmpp.im.event.EventInviterChatRoom;
-import com.testxmpp.im.event.RxBus;
+import com.testxmpp.im.listener.ChatRoomInvitationListener;
+import com.testxmpp.im.listener.ChatRoomRejectInvitationListener;
+import com.testxmpp.im.listener.ChatRoomStatusListener;
 
-import org.jivesoftware.smack.Connection;
 import org.jivesoftware.smack.SmackConfiguration;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
-import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smackx.Form;
 import org.jivesoftware.smackx.FormField;
 import org.jivesoftware.smackx.muc.DiscussionHistory;
-import org.jivesoftware.smackx.muc.InvitationListener;
 import org.jivesoftware.smackx.muc.MultiUserChat;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-/**
- * 时间: 2017/7/2 上午1:37
- * 作者：张林
- * Email:zhanglin01@100tal.com
- * TODO:
- */
 
+/**
+ * created by zhanglin on 2017/7/2
+ */
 public class ChatRoomManager {
     private static ChatRoomManager instance = null;
+    private ChatRoomInvitationListener chatRoomInvitationListener;
+    private ChatRoomRejectInvitationListener chatRoomRejectInvitationListener;
+    private ChatRoomStatusListener chatRoomStatusListener;
+
     private ChatRoomManager() {
 
     }
@@ -35,7 +34,6 @@ public class ChatRoomManager {
         if (instance == null) instance = new ChatRoomManager();
         return instance;
     }
-
 
 
     /**
@@ -87,7 +85,7 @@ public class ChatRoomManager {
                 submitForm.setAnswer("muc#roomconfig_roomsecret", password);
             }
             // 能够发现占有者真实 JID 的角色
-            // submitForm.setAnswer("muc#roomconfig_whois", "anyone");
+            submitForm.setAnswer("muc#roomconfig_whois", "anyone");
             // 登录房间对话
             submitForm.setAnswer("muc#roomconfig_enablelogging", true);
             // 仅允许注册的昵称登录
@@ -98,6 +96,11 @@ public class ChatRoomManager {
             submitForm.setAnswer("x-muc#roomconfig_registration", false);
             // 发送已完成的表单（有默认值）到服务器来配置聊天室
             muc.sendConfigurationForm(submitForm);
+
+            //注册聊天室邀请被拒绝监听
+            registerChatRoomRejectInvitationListener(muc);
+            //注册聊天室成员变化监听
+            registerChatRoomStatusListener(muc);
         } catch (XMPPException e) {
             e.printStackTrace();
             return null;
@@ -122,6 +125,10 @@ public class ChatRoomManager {
             DiscussionHistory history = new DiscussionHistory();
             history.setMaxStanzas(0);
             muc.join(connection.getUser(), psw, history, SmackConfiguration.getPacketReplyTimeout());
+            //注册聊天室邀请被拒绝监听
+            registerChatRoomRejectInvitationListener(muc);
+            //注册聊天室成员变化监听
+            registerChatRoomStatusListener(muc);
             return true;
         } catch (XMPPException e) {
             e.printStackTrace();
@@ -141,8 +148,10 @@ public class ChatRoomManager {
         if (connection == null)
             return;
         MultiUserChat multiUserChat = MultiUserChatManager.getInstance().getMultiUserChat(connection, roomId);
-        if (multiUserChat.isJoined())
+        if (multiUserChat.isJoined()) {
             multiUserChat.leave();
+            unRegisterChatRoomStatusListener(multiUserChat);
+        }
     }
 
     /**
@@ -161,18 +170,75 @@ public class ChatRoomManager {
     }
 
     /**
+     * 注册聊天室拒绝邀请监听
+     *
+     * @param muc
+     */
+    public void registerChatRoomRejectInvitationListener(MultiUserChat muc) {
+        if (muc == null) return;
+        if (chatRoomRejectInvitationListener == null)
+            chatRoomRejectInvitationListener = new ChatRoomRejectInvitationListener();
+        muc.addInvitationRejectionListener(chatRoomRejectInvitationListener);
+    }
+
+    /**
+     * 注销聊天室拒绝监听
+     */
+
+    public void unRegisterChatRoomRejectListener(MultiUserChat muc) {
+        if (muc == null) return;
+        if (chatRoomRejectInvitationListener != null) {
+            muc.removeInvitationRejectionListener(chatRoomRejectInvitationListener);
+        }
+    }
+
+    /**
+     * 注册聊天室成员变化监听
+     *
+     * @param muc
+     */
+    public void registerChatRoomStatusListener(MultiUserChat muc) {
+        if (muc == null) return;
+        if (chatRoomStatusListener == null)
+            chatRoomStatusListener = new ChatRoomStatusListener(muc.getRoom());
+        muc.addParticipantStatusListener(chatRoomStatusListener);
+    }
+
+    public void unRegisterChatRoomStatusListener(MultiUserChat muc) {
+        if (muc == null) return;
+        if (chatRoomStatusListener != null) {
+            muc.removeParticipantStatusListener(chatRoomStatusListener);
+        }
+    }
+
+    /**
      * 注册会议室邀请监听
      */
     public void registerChatRoomInviterListener() {
         XMPPConnection connection = IMConnectionManager.getInstance().getConnection();
         if (connection == null)
             return;
-        MultiUserChat.addInvitationListener(connection, new InvitationListener() {
-            @Override
-            public void invitationReceived(Connection connection, String roomID, String inviter, String reason, String psw, Message message) {
-                RxBus.getDefault().post(new EventInviterChatRoom(message, reason, psw, roomID, inviter));
+        if (chatRoomInvitationListener == null) {
+            chatRoomInvitationListener = new ChatRoomInvitationListener();
+        }
+        MultiUserChat.addInvitationListener(connection, chatRoomInvitationListener);
+
+    }
+
+    /**
+     * 注销会议室邀请监听事件
+     */
+    public void unRegisterChatRoomInvitationListener() {
+        XMPPConnection connection = IMConnectionManager.getInstance().getConnection();
+        if (connection == null)
+            return;
+        if (chatRoomInvitationListener != null) {
+            try {
+                MultiUserChat.removeInvitationListener(connection, chatRoomInvitationListener);
+            } catch (Exception e) {
+                e.printStackTrace();
             }
-        });
+        }
     }
 
     /**

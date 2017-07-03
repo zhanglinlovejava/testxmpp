@@ -18,11 +18,9 @@ import org.jivesoftware.smackx.provider.StreamInitiationProvider;
 import org.jivesoftware.smackx.provider.VCardProvider;
 import org.jivesoftware.smackx.provider.XHTMLExtensionProvider;
 
+
 /**
- * 时间: 2017/7/1 下午11:28
- * 作者：张林
- * Email:zhanglin01@100tal.com
- * TODO:
+ * created by zhanglin on 2017/7/2
  */
 
 public class ConfigProvider {
