@@ -24,9 +24,7 @@ public class Constants {
     public static final String STATUS_MODERATOR_REVOKED = "status_moderator_revoked";
     public static final String STATUS_OWNERSHIP_GRANTED = "status_ownership_granted";
     public static final String STATUS_OWNERSHIP_REVOKED = "status_ownership_revoked";
-    public static final String STATUS_ADMIN_GRANTED = "status_admin_granted";
-    public static final String STATUS_ADMIN_REVOKED = "status_admin_revoked";
-    public static final String STATUS_NICKNAME_CHANGED = "status_nickname_changed";
+ 
 
     //add friend type
     public static final String TYPE_SUBSCRIBE = "type_subscribe";//收到好友请求
